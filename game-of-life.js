@@ -40,20 +40,6 @@ class GameOfLife {
         cellElement.dataset.y = y
         this.gridElement.appendChild(cellElement)
         row.push(cellElement)
-
-        const cell = this.gameCore.grid[y][x]
-        const proxyCell = new Proxy(cell, {
-          set: (target, property, value) => {
-            if (property === 'isAlive') {
-              requestAnimationFrame(() => {
-                cellElement.classList.toggle('alive', value)
-              })
-            }
-            target[property] = value
-            return true
-          }
-        })
-        this.gameCore.grid[y][x] = proxyCell
       }
       this.cellElements.push(row)
     }
@@ -77,6 +63,9 @@ class GameOfLife {
     this.gridElement.addEventListener('mouseup', () => {
       this.isDrawing = false
     })
+    this.gridElement.addEventListener('mouseleave', () => {
+      this.isDrawing = false
+    })
 
     this.gridElement.addEventListener('mousemove', (event) => {
       const { target } = event
@@ -86,9 +75,10 @@ class GameOfLife {
         target !== this.lastCellUnderMouse
       ) {
         this.lastCellUnderMouse = target
-        const { x, y } = target.dataset
-        this.gameCore.toggleCell(parseInt(x), parseInt(y))
-        this.toggleCell(parseInt(x), parseInt(y))
+        const x = parseInt(target.dataset.x)
+        const y = parseInt(target.dataset.y)
+        this.gameCore.toggleCell(x, y)
+        this.toggleCell(x, y)
       }
     })
 
