@@ -47,9 +47,7 @@ class GameOfLife {
 
   setupEventListeners() {
     this.gridElement.addEventListener('mousedown', (event) => {
-      if (!event.button === 0) {
-        return
-      }
+      if (event.button !== 0) return
       this.isDrawing = true
       const target = event.target
       if (target.classList.contains('cell')) {
@@ -68,9 +66,9 @@ class GameOfLife {
     })
 
     this.gridElement.addEventListener('mousemove', (event) => {
+      if (!this.isDrawing) return
       const { target } = event
       if (
-        this.isDrawing &&
         target.classList.contains('cell') &&
         target !== this.lastCellUnderMouse
       ) {

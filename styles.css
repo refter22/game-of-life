@@ -34,3 +34,7 @@ body {
 .cell.alive {
     background-color: black;
 }
+
+.cell:not(.alive):hover {
+  background-color: gray;
+}
