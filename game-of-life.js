@@ -1,6 +1,5 @@
 class GameOfLife {
   constructor(
-    gameCore,
     gridElement,
     startButton,
     stopButton,
@@ -8,7 +7,6 @@ class GameOfLife {
     gridSizeInput,
     speedInput
   ) {
-    this.gameCore = gameCore
     this.gridElement = gridElement
     this.startButton = startButton
     this.stopButton = stopButton
@@ -21,19 +19,32 @@ class GameOfLife {
     this.speed = parseInt(speedInput.value)
     this.isDrawing = false
     this.lastCellUnderMouse = null
+    this.lastFrameTime = 0
+
+    this.worker = new Worker('game-of-life-worker.js')
+    this.worker.onmessage = this.handleWorkerMessage.bind(this)
 
     this.createHtmlGrid()
     this.setupEventListeners()
+
+    this.initGameCore()
+  }
+
+  initGameCore() {
+    const width = parseInt(this.gridSizeInput.value)
+    const height = parseInt(this.gridSizeInput.value)
+    this.worker.postMessage({ type: 'init', data: { width, height } })
   }
 
   createHtmlGrid() {
-    this.gridElement.style.gridTemplateColumns = `repeat(${this.gameCore.width}, 10px)`
-    this.gridElement.style.gridTemplateRows = `repeat(${this.gameCore.height}, 10px)`
+    const size = parseInt(this.gridSizeInput.value)
+    this.gridElement.style.gridTemplateColumns = `repeat(${size}, 10px)`
+    this.gridElement.style.gridTemplateRows = `repeat(${size}, 10px)`
 
     this.gridElement.innerHTML = ''
-    for (let y = 0; y < this.gameCore.height; y++) {
+    for (let y = 0; y < size; y++) {
       const row = []
-      for (let x = 0; x < this.gameCore.width; x++) {
+      for (let x = 0; x < size; x++) {
         const cellElement = document.createElement('div')
         cellElement.classList.add('cell')
         cellElement.dataset.x = x
@@ -53,8 +64,7 @@ class GameOfLife {
       if (target.classList.contains('cell')) {
         const x = parseInt(target.dataset.x)
         const y = parseInt(target.dataset.y)
-        this.gameCore.toggleCell(x, y)
-        this.toggleCell(x, y)
+        this.worker.postMessage({ type: 'toggleCell', data: { x, y } })
       }
     })
 
@@ -75,8 +85,7 @@ class GameOfLife {
         this.lastCellUnderMouse = target
         const x = parseInt(target.dataset.x)
         const y = parseInt(target.dataset.y)
-        this.gameCore.toggleCell(x, y)
-        this.toggleCell(x, y)
+        this.worker.postMessage({ type: 'toggleCell', data: { x, y } })
       }
     })
 
@@ -91,56 +100,68 @@ class GameOfLife {
   start() {
     if (!this.isRunning) {
       this.isRunning = true
-      this.interval = setInterval(() => {
-        this.gameCore.step()
-        this.updateUI()
-      }, this.speed)
+      this.lastFrameTime = performance.now()
+      requestAnimationFrame(this.step.bind(this))
     }
   }
 
-  stop() {
-    if (this.isRunning) {
-      this.isRunning = false
-      clearInterval(this.interval)
+  step(timestamp) {
+    if (!this.isRunning) return
+
+    const elapsed = timestamp - this.lastFrameTime
+
+    if (elapsed >= this.speed) {
+      this.worker.postMessage({ type: 'step' })
+      this.lastFrameTime = timestamp
     }
+
+    requestAnimationFrame(this.step.bind(this))
+  }
+
+  stop() {
+    this.isRunning = false
   }
 
   reset() {
     this.stop()
-    this.gameCore.reset()
-    this.updateUI()
+    this.worker.postMessage({ type: 'reset' })
   }
 
   changeGridSize() {
-    const newSize = parseInt(this.gridSizeInput.value)
     this.stop()
-    this.gameCore = new GameOfLifeCore(newSize, newSize)
     this.cellElements = []
     this.createHtmlGrid()
+    this.initGameCore()
   }
 
   changeSpeed() {
     this.speed = parseInt(this.speedInput.value)
-    if (this.isRunning) {
-      this.stop()
-      this.start()
+  }
+
+  handleWorkerMessage(event) {
+    const { type, changedCells, cell } = event.data
+
+    if (type === 'update') {
+      requestAnimationFrame(() => {
+        changedCells.forEach((cell) => {
+          const cellElement = this.cellElements[cell.y][cell.x]
+          cellElement.classList.toggle('alive', cell.isAlive)
+        })
+      })
+    } else if (type === 'cellToggled') {
+      const cellElement = this.cellElements[cell.y][cell.x]
+      cellElement.classList.toggle('alive', cell.isAlive)
+    } else if (type === 'resetDone') {
+      this.updateUI()
     }
   }
 
   updateUI() {
-    const changedCells = this.gameCore.getChangedCells()
-    requestAnimationFrame(() => {
-      changedCells.forEach((cell) => {
-        const cellElement = this.cellElements[cell.y][cell.x]
-        cellElement.classList.toggle('alive', cell.isAlive)
+    this.cellElements.forEach((row, y) => {
+      row.forEach((cellElement, x) => {
+        cellElement.classList.remove('alive')
       })
     })
-  }
-
-  toggleCell(x, y) {
-    const cell = this.gameCore.grid[y][x]
-    const cellElement = this.cellElements[y][x]
-    cellElement.classList.toggle('alive', cell.isAlive)
   }
 }
 
@@ -152,12 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const gridSizeInput = document.getElementById('grid-size')
   const speedInput = document.getElementById('speed')
 
-  const width = parseInt(gridSizeInput.value)
-  const height = parseInt(gridSizeInput.value)
-
-  const gameCore = new GameOfLifeCore(width, height)
   new GameOfLife(
-    gameCore,
     gridElement,
     startButton,
     stopButton,
