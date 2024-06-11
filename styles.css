@@ -1,40 +1,46 @@
+/* styles.css */
 body {
-    font-family: Arial, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    margin: 0;
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  margin: 0;
 }
 
 #controls {
-    margin-bottom: 10px;
+  margin-bottom: 10px;
 }
 
 #grid-container {
-    width: 80vw;
-    height: 80vh;
-    overflow: auto;
-    border: 1px solid #ccc;
+  width: 80vw;
+  height: 80vh;
+  overflow: hidden;
+  border: 1px solid #ccc;
+  position: relative;
 }
 
 #grid {
-    display: grid;
-    position: relative;
+  display: grid;
+  position: absolute;
 }
 
 .cell {
-    width: 10px;
-    height: 10px;
-    background-color: white;
-    border: 1px solid #ccc;
+  width: 10px;
+  height: 10px;
+  background-color: white;
+  border: 1px solid #ccc;
 }
 
 .cell.alive {
-    background-color: black;
+  background-color: black;
 }
 
 .cell:not(.alive):hover {
-  background-color: gray;
+background-color: gray;
+}
+
+.moving {
+  cursor: all-scroll;
 }

@@ -20,6 +20,9 @@ class GameOfLife {
     this.isDrawing = false
     this.lastCellUnderMouse = null
     this.lastFrameTime = 0
+    this.offsetX = 0
+    this.offsetY = 0
+    this.isDragging = false
 
     this.worker = new Worker('game-of-life-worker.js')
     this.worker.onmessage = this.handleWorkerMessage.bind(this)
@@ -58,34 +61,45 @@ class GameOfLife {
 
   setupEventListeners() {
     this.gridElement.addEventListener('mousedown', (event) => {
-      if (event.button !== 0) return
-      this.isDrawing = true
-      const target = event.target
-      if (target.classList.contains('cell')) {
-        const x = parseInt(target.dataset.x)
-        const y = parseInt(target.dataset.y)
-        this.worker.postMessage({ type: 'toggleCell', data: { x, y } })
+      if (event.button === 0) {
+        this.isDrawing = true
+        const target = event.target
+        if (target.classList.contains('cell')) {
+          const x = parseInt(target.dataset.x)
+          const y = parseInt(target.dataset.y)
+          this.worker.postMessage({ type: 'toggleCell', data: { x, y } })
+        }
+      } else if (event.button === 1) {
+        this.startDragging(event)
       }
     })
 
-    this.gridElement.addEventListener('mouseup', () => {
-      this.isDrawing = false
+    this.gridElement.addEventListener('mouseup', (event) => {
+      if (event.button === 0) {
+        this.isDrawing = false
+      } else if (event.button === 1) {
+        this.stopDragging()
+      }
     })
     this.gridElement.addEventListener('mouseleave', () => {
       this.isDrawing = false
+      this.stopDragging()
     })
 
     this.gridElement.addEventListener('mousemove', (event) => {
-      if (!this.isDrawing) return
-      const { target } = event
-      if (
-        target.classList.contains('cell') &&
-        target !== this.lastCellUnderMouse
-      ) {
-        this.lastCellUnderMouse = target
-        const x = parseInt(target.dataset.x)
-        const y = parseInt(target.dataset.y)
-        this.worker.postMessage({ type: 'toggleCell', data: { x, y } })
+      if (this.isDrawing) {
+        const { target } = event
+        if (
+          target.classList.contains('cell') &&
+          target !== this.lastCellUnderMouse
+        ) {
+          this.lastCellUnderMouse = target
+          const x = parseInt(target.dataset.x)
+          const y = parseInt(target.dataset.y)
+          this.worker.postMessage({ type: 'toggleCell', data: { x, y } })
+        }
+      } else if (this.isDragging) {
+        this.dragGrid(event)
       }
     })
 
@@ -122,9 +136,41 @@ class GameOfLife {
     this.isRunning = false
   }
 
+  startDragging(event) {
+    this.isDragging = true
+    this.startX = event.clientX
+    this.startY = event.clientY
+    this.gridElement.classList.add('moving')
+    event.preventDefault()
+  }
+
+  stopDragging() {
+    this.isDragging = false
+    this.gridElement.classList.remove('moving')
+  }
+
+  dragGrid(event) {
+    this.offsetX += event.clientX - this.startX
+    this.offsetY += event.clientY - this.startY
+    this.startX = event.clientX
+    this.startY = event.clientY
+    this.updateTransform()
+  }
+
+  updateTransform() {
+    this.gridElement.style.transform = `translate(${this.offsetX}px, ${this.offsetY}px)`
+  }
+
+  resetGridPosition() {
+    this.offsetX = 0
+    this.offsetY = 0
+    this.updateTransform()
+  }
+
   reset() {
     this.stop()
     this.worker.postMessage({ type: 'reset' })
+    this.resetGridPosition()
   }
 
   changeGridSize() {
@@ -132,6 +178,7 @@ class GameOfLife {
     this.cellElements = []
     this.createHtmlGrid()
     this.initGameCore()
+    this.resetGridPosition()
   }
 
   changeSpeed() {
