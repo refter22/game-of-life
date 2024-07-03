@@ -61,6 +61,7 @@ class GameOfLife {
 
   setupEventListeners() {
     this.gridElement.addEventListener('mousedown', (event) => {
+      event.preventDefault()
       if (event.button === 0) {
         this.isDrawing = true
         const target = event.target
